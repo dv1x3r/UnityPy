@@ -110,49 +110,51 @@ class MeshHandler:
     def process(self):
         mesh = self.src
         vertex_data = mesh.m_VertexData
-        assert vertex_data is not None
 
         m_Channels: list[ChannelInfo]
         m_Streams: list[StreamInfo]
 
-        if self.version[0] < 4:
-            assert (
-                vertex_data.m_Streams_0_ is not None
-                and vertex_data.m_Streams_1_ is not None
-                and vertex_data.m_Streams_2_ is not None
-                and vertex_data.m_Streams_3_ is not None
-            )
-            m_Streams = [
-                vertex_data.m_Streams_0_,
-                vertex_data.m_Streams_1_,
-                vertex_data.m_Streams_2_,
-                vertex_data.m_Streams_3_,
-            ]
-            assert all(stream is not None for stream in m_Streams)
-            m_Channels = self.get_channels(m_Streams)
-        elif self.version[0] == 4:
-            assert vertex_data.m_Streams is not None and vertex_data.m_Channels is not None
-            m_Streams = vertex_data.m_Streams
-            m_Channels = vertex_data.m_Channels
-        else:
-            assert vertex_data.m_Channels is not None
-            m_Channels = vertex_data.m_Channels
-            m_Streams = self.get_streams(m_Channels, vertex_data.m_VertexCount)
+        # version >= 3.5: vertex data is stored in m_VertexData
+        # version < 3.5: m_VertexData does not exist, data is in Mesh fields directly
+        if vertex_data is not None:
+            if self.version[0] < 4:
+                assert (
+                    vertex_data.m_Streams_0_ is not None
+                    and vertex_data.m_Streams_1_ is not None
+                    and vertex_data.m_Streams_2_ is not None
+                    and vertex_data.m_Streams_3_ is not None
+                )
+                m_Streams = [
+                    vertex_data.m_Streams_0_,
+                    vertex_data.m_Streams_1_,
+                    vertex_data.m_Streams_2_,
+                    vertex_data.m_Streams_3_,
+                ]
+                assert all(stream is not None for stream in m_Streams)
+                m_Channels = self.get_channels(m_Streams)
+            elif self.version[0] == 4:
+                assert vertex_data.m_Streams is not None and vertex_data.m_Channels is not None
+                m_Streams = vertex_data.m_Streams
+                m_Channels = vertex_data.m_Channels
+            else:
+                assert vertex_data.m_Channels is not None
+                m_Channels = vertex_data.m_Channels
+                m_Streams = self.get_streams(m_Channels, vertex_data.m_VertexCount)
 
-        if (
-            isinstance(mesh, Mesh) and mesh.m_StreamData and mesh.m_StreamData.path
-            # and mesh.m_VertexData
-            # and mesh.m_VertexData.m_VertexCount
-        ):
-            stream_data = mesh.m_StreamData
-            assert mesh.object_reader, "No object reader assigned to the input Mesh!"
-            data = get_resource_data(
-                stream_data.path,
-                mesh.object_reader.assets_file,
-                stream_data.offset,
-                stream_data.size,
-            )
-            vertex_data.m_DataSize = data
+            if (
+                isinstance(mesh, Mesh) and mesh.m_StreamData and mesh.m_StreamData.path
+                # and mesh.m_VertexData
+                # and mesh.m_VertexData.m_VertexCount
+            ):
+                stream_data = mesh.m_StreamData
+                assert mesh.object_reader, "No object reader assigned to the input Mesh!"
+                data = get_resource_data(
+                    stream_data.path,
+                    mesh.object_reader.assets_file,
+                    stream_data.offset,
+                    stream_data.size,
+                )
+                vertex_data.m_DataSize = data
 
         # try to copy data directly from mesh
         if isinstance(mesh, Mesh):
